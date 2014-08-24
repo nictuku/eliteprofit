@@ -34,7 +34,7 @@ type Key struct {
 
 type marketStore map[Key]*llrb.LLRB
 
-const maxItems = 100
+const maxItems = 5
 
 func (s marketStore) record(m emdn.Transaction) {
 	k := Key{"Demand", m.ItemName}
@@ -151,7 +151,6 @@ func main() {
 		item := m.Transaction.ItemName
 		fmt.Printf("top supply for %+v: %+v\n", item, store.minSupply(item))
 		fmt.Printf("top demand for %+v: %+v\n", item, store.maxDemand(item))
-		fmt.Printf("length: supply %v, demand %v\n", store[Key{"Supply", item}].Len(), store[Key{"Demand", item}].Len())
 	}
 
 }
