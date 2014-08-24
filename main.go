@@ -1,50 +1,32 @@
+// eliteprofit shows strategies that maximize trading profits in Elite: Dangerous,
+// based on real-time market data.
 package main
 
 import (
-	"bufio"
-	"encoding/json"
 	"flag"
 	"fmt"
-	"log"
 	"math"
 	"net/http"
-	"os"
-	"os/exec"
-	"path/filepath"
 
+	"github.com/nictuku/eliteprofit/emdn"
 	"github.com/petar/GoLLRB/llrb"
 )
 
 // References:
 // - EMDN http://forums.frontier.co.uk/showthread.php?t=23585
 // - distances: http://forums.frontier.co.uk/showthread.php?t=34824
-
-type Message struct {
-	Transaction Transaction `json:"message"`
-	Type        string      `json:"type"`
-}
-
-type Transaction struct {
-	BuyPrice     float64 `json:"buyPrice"`
-	CategoryName string  `json:"categoryName"`
-	Demand       int     `json:"demand"`
-	Supply       int     `json:"stationStock"`
-	ItemName     string  `json:"itemName"`
-	SellPrice    float64 `json:"sellPrice"`
-	StationName  string  `json:"stationName"`
-}
-
 var testMode = flag.Bool("testMode", false, "test mode, uses the input from data/input.json")
 
-// Queries:
-// - bestSellingPrice(currentLocation, credits)
-// - bestBuyingPrice(currentLocation, credits)
-
-/* Goal:
-func bestRouteFrom(location string, creditLimit int) (item string, destination string) {
-	// find weighted shorted path between high supply and high demand.
-}
-*/
+// Planned features:
+//
+// - bestBuyingPrice(currentLocation, creditLimit, shipType)
+//   ~ answers the question "I'm in I Boots, what should I buy?"
+//
+/// - bestSellingPrice(currentLocation, product, shipType):
+//   ~ "I'm in I Boots with a cargo of Gold in a Sidewinder, where should I sell it?"
+//
+// - bestRouteFrom(location string, creditLimit int) (item string, destination string) {
+//
 
 type Key struct {
 	Type, Item string
@@ -54,7 +36,7 @@ type marketStore map[Key]*llrb.LLRB
 
 const maxItems = 100
 
-func (s marketStore) record(m Transaction) {
+func (s marketStore) record(m emdn.Transaction) {
 	k := Key{"Demand", m.ItemName}
 	tree, ok := s[k]
 	if !ok {
@@ -125,7 +107,7 @@ func (s marketStore) sellHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-type suptrans Transaction
+type suptrans emdn.Transaction
 
 func (t suptrans) Less(item llrb.Item) bool {
 	if t.Supply == 0 {
@@ -136,7 +118,7 @@ func (t suptrans) Less(item llrb.Item) bool {
 
 func (t suptrans) Type() string { return "Supply" }
 
-type demtrans Transaction
+type demtrans emdn.Transaction
 
 func (t demtrans) Less(item llrb.Item) bool {
 	if t.Demand == 0 {
@@ -147,41 +129,13 @@ func (t demtrans) Less(item llrb.Item) bool {
 
 func (t demtrans) Type() string { return "Demand" }
 
-/*
-{"message":{"buyPrice":0.0,"categoryName":"metals","demand":4509,"demandLevel":2
-,"itemName":"uranium","sellPrice":2845.0,"stationName":"Asellus Primus (BEAGLE 2
- LANDING)","stationStock":0,"stationStockLevel":0,"timestamp":"2014-08-22T19:21:
-38.503000+00:00"},"sender":"/QnobE//Oo86cZaJTT3c9YJ2N37hGi0YltWUArLxPUA=","signa
-ture":"oqywduXExOwmBCzVIQD4rI0LbYTLZJyt8MmZGORku0HDO1qeX4/fkHiSibklO5KAuxWRan5YH
-f553NgYwr//BQ==","type":"marketquote","version":"0.1"}
-*/
-func parseMessage(line string) (m Message) {
-	if err := json.Unmarshal([]byte(line), &m); err != nil {
-		log.Fatal(err)
-	}
-	return m
-}
-
 func main() {
 	flag.Parse()
-	var scanner *bufio.Scanner
+	var sub func() <-chan emdn.Message
 	if *testMode {
-		f, err := os.Open(filepath.Join("data", "input.json"))
-		if err != nil {
-			log.Fatal(err)
-		}
-		defer f.Close()
-		scanner = bufio.NewScanner(f)
+		sub = emdn.TestSubscribe
 	} else {
-		cmd := exec.Command(filepath.Join("c:", "marketdump", "firehose.exe"))
-		stdout, err := cmd.StdoutPipe()
-		if err != nil {
-			log.Fatal(err)
-		}
-		if err := cmd.Start(); err != nil {
-			log.Fatal(err)
-		}
-		scanner = bufio.NewScanner(stdout)
+		sub = emdn.Subscribe
 	}
 	store := make(marketStore)
 
@@ -190,21 +144,14 @@ func main() {
 	http.HandleFunc("/sell", store.sellHandler)
 
 	go http.ListenAndServe(":8080", nil)
-
-	fmt.Println() // Println will add back the final '\n'
-
-	for scanner.Scan() {
-		line := scanner.Text()
-		m := parseMessage(line)
-		//fmt.Println(line)
-		//	fmt.Printf("%+v\n", m)
+	c := sub()
+	for {
+		m := <-c
 		store.record(m.Transaction)
 		item := m.Transaction.ItemName
-
 		fmt.Printf("top supply for %+v: %+v\n", item, store.minSupply(item))
 		fmt.Printf("top demand for %+v: %+v\n", item, store.maxDemand(item))
 		fmt.Printf("length: supply %v, demand %v\n", store[Key{"Supply", item}].Len(), store[Key{"Demand", item}].Len())
 	}
-	select {}
 
 }
