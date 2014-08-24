@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"math"
 	"net/http"
+	"sort"
 
 	"github.com/nictuku/eliteprofit/emdn"
 	"github.com/petar/GoLLRB/llrb"
@@ -79,31 +80,36 @@ func (s marketStore) minSupply(item string) suptrans {
 	return suptrans{}
 }
 
-func (s marketStore) buyHandler(w http.ResponseWriter, r *http.Request) {
+func (s marketStore) sorted(itemType string) []string {
+	items := make([]string, 0, len(s))
 	for k, _ := range s {
-		if k.Type == "Demand" {
-			continue
+		if k.Type == itemType {
+			items = append(items, k.Item)
 		}
-		bestPrice := s.minSupply(k.Item)
+	}
+	sort.Strings(items)
+	return items
+}
+
+func (s marketStore) buyHandler(w http.ResponseWriter, r *http.Request) {
+	for _, item := range s.sorted("Demand") {
+		bestPrice := s.minSupply(item)
 		p := fmt.Sprintf("%v CR", bestPrice.BuyPrice)
 		if bestPrice.BuyPrice == math.MaxInt64 {
 			p = "N/A"
 		}
-		fmt.Fprintf(w, "%v: best place to buy from: %v, for %v (supply %v)\n", k.Item, bestPrice.StationName, p, bestPrice.Supply)
+		fmt.Fprintf(w, "%v: best place to buy from: %v, for %v (supply %v)\n", item, bestPrice.StationName, p, bestPrice.Supply)
 	}
 }
 
 func (s marketStore) sellHandler(w http.ResponseWriter, r *http.Request) {
-	for k, _ := range s {
-		if k.Type == "Supply" {
-			continue
-		}
-		bestPrice := s.maxDemand(k.Item)
+	for _, item := range s.sorted("Supply") {
+		bestPrice := s.maxDemand(item)
 		p := fmt.Sprintf("%v CR", bestPrice.SellPrice)
 		if bestPrice.BuyPrice == math.MaxInt64 {
 			p = "N/A"
 		}
-		fmt.Fprintf(w, "%v: best place to sell to: %v, for %v (demand %v)\n", k.Item, bestPrice.StationName, p, bestPrice.Demand)
+		fmt.Fprintf(w, "%v: best place to sell to: %v, for %v (demand %v)\n", item, bestPrice.StationName, p, bestPrice.Demand)
 	}
 }
 
@@ -137,6 +143,7 @@ func main() {
 	} else {
 		sub = emdn.Subscribe
 	}
+	// XXX: HTTP handlers and zeromq are racing.
 	store := make(marketStore)
 
 	http.HandleFunc("/buy", store.buyHandler)
