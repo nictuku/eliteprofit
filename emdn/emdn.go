@@ -14,7 +14,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	zmq "github.com/pebbe/zmq3"
+	zmq "github.com/pebbe/zmq2"
 
 	"fmt"
 )
