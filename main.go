@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"log"
 	"math"
@@ -27,10 +28,13 @@ type Transaction struct {
 	BuyPrice     float64 `json:"buyPrice"`
 	CategoryName string  `json:"categoryName"`
 	Demand       int     `json:"demand"`
+	Supply       int     `json:"stationStock"`
 	ItemName     string  `json:"itemName"`
 	SellPrice    float64 `json:"sellPrice"`
 	StationName  string  `json:"stationName"`
 }
+
+var testMode = flag.Bool("testMode", false, "test mode, uses the input from data/input.json")
 
 // Queries:
 // - bestSellingPrice(currentLocation, credits)
@@ -103,7 +107,7 @@ func (s marketStore) buyHandler(w http.ResponseWriter, r *http.Request) {
 		if bestPrice.BuyPrice == math.MaxInt64 {
 			p = "N/A"
 		}
-		fmt.Fprintf(w, "%v: best place to buy from: %v, for %v\n", k.Item, bestPrice.StationName, p)
+		fmt.Fprintf(w, "%v: best place to buy from: %v, for %v (supply %v)\n", k.Item, bestPrice.StationName, p, bestPrice.Supply)
 	}
 }
 
@@ -117,13 +121,16 @@ func (s marketStore) sellHandler(w http.ResponseWriter, r *http.Request) {
 		if bestPrice.BuyPrice == math.MaxInt64 {
 			p = "N/A"
 		}
-		fmt.Fprintf(w, "%v: best place to sell to: %v, for %v\n", k.Item, bestPrice.StationName, p)
+		fmt.Fprintf(w, "%v: best place to sell to: %v, for %v (demand %v)\n", k.Item, bestPrice.StationName, p, bestPrice.Demand)
 	}
 }
 
 type suptrans Transaction
 
 func (t suptrans) Less(item llrb.Item) bool {
+	if t.Supply == 0 {
+		return false
+	}
 	return t.BuyPrice < item.(suptrans).BuyPrice
 }
 
@@ -132,6 +139,9 @@ func (t suptrans) Type() string { return "Supply" }
 type demtrans Transaction
 
 func (t demtrans) Less(item llrb.Item) bool {
+	if t.Demand == 0 {
+		return false
+	}
 	return t.SellPrice < item.(demtrans).SellPrice
 }
 
@@ -153,9 +163,16 @@ func parseMessage(line string) (m Message) {
 }
 
 func main() {
-
+	flag.Parse()
 	var scanner *bufio.Scanner
-	if true { // set to false for testing.
+	if *testMode {
+		f, err := os.Open(filepath.Join("data", "input.json"))
+		if err != nil {
+			log.Fatal(err)
+		}
+		defer f.Close()
+		scanner = bufio.NewScanner(f)
+	} else {
 		cmd := exec.Command(filepath.Join("c:", "marketdump", "firehose.exe"))
 		stdout, err := cmd.StdoutPipe()
 		if err != nil {
@@ -165,13 +182,6 @@ func main() {
 			log.Fatal(err)
 		}
 		scanner = bufio.NewScanner(stdout)
-	} else {
-		f, err := os.Open("input.json")
-		if err != nil {
-			log.Fatal(err)
-		}
-		defer f.Close()
-		scanner = bufio.NewScanner(f)
 	}
 	store := make(marketStore)
 
