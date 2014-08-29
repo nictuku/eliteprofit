@@ -30,7 +30,8 @@ var testMode = flag.Bool("testMode", false, "test mode, uses the input from data
 //
 
 type Key struct {
-	Type, Item string
+	Type string // Supply or Demand
+	Item string // coffee, gold, etc.
 }
 
 type marketStore map[Key]*llrb.LLRB
