@@ -63,6 +63,7 @@ func TestSubscribe() <-chan Message {
 		for scanner.Scan() {
 			buf := bytes.NewReader(scanner.Bytes())
 			c <- parseMessage(buf)
+			fmt.Print(".")
 		}
 		fmt.Println("finished processing input.json")
 		if err := scanner.Err(); err != nil {

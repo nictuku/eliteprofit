@@ -18,7 +18,8 @@ import (
 // References:
 // - EMDN http://forums.frontier.co.uk/showthread.php?t=23585
 // - distances: http://forums.frontier.co.uk/showthread.php?t=34824
-var testMode = flag.Bool("testMode", false, "test mode, uses the input from data/input.json")
+var test = flag.Bool("test", false, "test mode, uses the input from data/input.json")
+var debug = flag.Bool("debug", false, "print debugging details")
 
 // Planned features:
 //
@@ -32,7 +33,7 @@ var testMode = flag.Bool("testMode", false, "test mode, uses the input from data
 //
 
 type marketStore struct {
-	sync.RWMutex
+	sync.Mutex
 	itemSupply map[string]*llrb.LLRB
 	itemDemand map[string]*llrb.LLRB
 	// station => item => price
@@ -106,8 +107,8 @@ func (s marketStore) minSupply(item string) suptrans {
 }
 
 func (s marketStore) bestBuyHandler(w http.ResponseWriter, r *http.Request) {
-	s.RLock()
-	defer s.RUnlock()
+	mu.Lock()
+	defer mu.Unlock()
 	stations := make([]string, 0, len(s.stationSupply))
 	for station := range s.stationSupply {
 		stations = append(stations, station)
@@ -116,15 +117,15 @@ func (s marketStore) bestBuyHandler(w http.ResponseWriter, r *http.Request) {
 	for _, station := range stations {
 		fmt.Fprintf(w, "======== buying from %v =======\n", station)
 		for _, route := range s.bestBuy(station, 10000, 10000) {
-			fmt.Fprintf(w, "buy %v and sell to %v for profit %v\n", route.Item, route.DestinationStation, route.Profit)
+			fmt.Fprintf(w, "buy %v for %v and sell to %v for %v, profit %v\n", route.Item, route.BuyPrice, route.DestinationStation, route.SellPrice, route.Profit)
 		}
 		fmt.Fprintf(w, "\n")
 	}
 }
 
 func (s marketStore) buyHandler(w http.ResponseWriter, r *http.Request) {
-	s.RLock()
-	defer s.RUnlock()
+	mu.Lock()
+	defer mu.Unlock()
 	items := make([]string, 0, len(s.itemSupply))
 	for station := range s.itemSupply {
 		items = append(items, station)
@@ -141,8 +142,8 @@ func (s marketStore) buyHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s marketStore) sellHandler(w http.ResponseWriter, r *http.Request) {
-	s.Lock()
-	defer s.Unlock()
+	mu.Lock()
+	defer mu.Unlock()
 	items := make([]string, 0, len(s.itemDemand))
 	for station := range s.itemDemand {
 		items = append(items, station)
@@ -180,10 +181,12 @@ func (t demtrans) Less(item llrb.Item) bool {
 
 func (t demtrans) Type() string { return "Demand" }
 
+var mu sync.Mutex
+
 func main() {
 	flag.Parse()
 	var sub func() <-chan emdn.Message
-	if *testMode {
+	if *test {
 		sub = emdn.TestSubscribe
 	} else {
 		sub = emdn.Subscribe
@@ -200,12 +203,14 @@ func main() {
 	for {
 		c := sub()
 		for m := range c {
-			store.Lock()
+			mu.Lock()
 			store.record(m.Transaction)
-			item := m.Transaction.Item
-			fmt.Printf("top supply for %+v: %+v\n", item, store.minSupply(item))
-			fmt.Printf("top demand for %+v: %+v\n", item, store.maxDemand(item))
-			store.Unlock()
+			if *debug {
+				item := m.Transaction.Item
+				fmt.Printf("top supply for %+v: %+v\n", item, store.minSupply(item))
+				fmt.Printf("top demand for %+v: %+v\n", item, store.maxDemand(item))
+			}
+			mu.Unlock()
 		}
 		// c isn't expected to close unless in test mode. But if it
 		// does, restart the subscription.
