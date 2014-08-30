@@ -1,6 +1,6 @@
 package main
 
-import "fmt"
+import "log"
 
 type Route struct {
 	Item               string
@@ -24,7 +24,7 @@ func (s marketStore) localItems(station string, creditLimit float64) (items []Ro
 
 // bestBuy finds the route with maximum profit based on arguments. It currently
 // only considers buying from local items and assumes a uniform travel cost -
-// i.e: consider all systems are one jump away.
+// i.e: assumes that all systems are one jump away.
 func (s marketStore) bestBuy(currentStation string, creditLimit float64, cargoLimit int) (routes []Route) {
 	// Find top profit for each item.
 	var bestProfit, profit float64
@@ -45,10 +45,11 @@ func (s marketStore) bestBuy(currentStation string, creditLimit float64, cargoLi
 			}
 			bestProfit = profit
 		}
+		// TODO: Consider the cargo limit.
 	}
 	// TODO: More routes.
 	routes = []Route{bestRoute}
-	fmt.Printf("Candidate best profit: deliver %v to %v for %v\n",
+	log.Printf("Candidate best profit: deliver %v to %v for %v\n",
 		bestRoute.Item, bestRoute.DestinationStation, bestRoute.Profit)
 	return routes
 }

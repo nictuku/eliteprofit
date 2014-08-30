@@ -16,8 +16,11 @@ import (
 	"path/filepath"
 	zmq "github.com/pebbe/zmq2"
 
+	"flag"
 	"fmt"
 )
+
+var showLog = flag.Bool("showLog", false, "Show EMDN messages on the stdout, useful for backup")
 
 type Message struct {
 	Transaction Transaction `json:"message"`
@@ -78,23 +81,25 @@ func Subscribe() <-chan Message {
 	receiver.Connect("tcp://firehose.elite-market-data.net:9500")
 	receiver.SetSubscribe("")
 	c := make(chan Message)
+
 	go func() {
-		defer receiver.Close()
-		defer close(c)
 		for {
 			// TODO: Find a way to avoid all the extra allocations.
 			buf, err := receiver.RecvBytes(0)
 			if err != nil {
-				// XXX
-				log.Fatal(err)
+				log.Print(err)
+				return
 			}
 			r, err := zlib.NewReader(bytes.NewReader(buf))
 			if err != nil {
-				// XXX
-				log.Fatal(err)
+				log.Print(err)
+				return
 			}
-			c <- parseMessage(r)
-			io.Copy(os.Stdout, r)
+			var tee io.Reader = r
+			if *showLog {
+				tee = io.TeeReader(r, os.Stdout)
+			}
+			c <- parseMessage(tee)
 			r.Close()
 		}
 	}()

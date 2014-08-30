@@ -16,13 +16,9 @@ import (
 	"github.com/petar/GoLLRB/llrb"
 )
 
-// References:
-// - EMDN http://forums.frontier.co.uk/showthread.php?t=23585
-// - distances: http://forums.frontier.co.uk/showthread.php?t=34824
 var (
-	test  = flag.Bool("test", false, "test mode, uses the input from data/input.json")
-	debug = flag.Bool("debug", false, "print debugging details")
-	port  = flag.String("port", ":8080", "HTTP port to listen to")
+	test = flag.Bool("test", false, "test mode, uses the input from data/input.json")
+	port = flag.String("port", ":8080", "HTTP port to listen to")
 )
 
 // Planned features:
@@ -35,6 +31,15 @@ var (
 //
 // - bestRouteFrom(location string, creditLimit int) (item string, destination string) {
 //
+
+// References:
+// - EMDN http://forums.frontier.co.uk/showthread.php?t=23585
+// - distances: http://forums.frontier.co.uk/showthread.php?t=34824
+
+// Logging policy:
+// - STDOUT is reserved for optionally printing EMDN messages
+// - all other messages should be printed with the log message, which ensures
+// they are sent to STDERR.
 
 type marketStore struct {
 	sync.Mutex
@@ -213,11 +218,6 @@ func main() {
 		for m := range c {
 			mu.Lock()
 			store.record(m.Transaction)
-			if *debug {
-				item := m.Transaction.Item
-				fmt.Printf("top supply for %+v: %+v\n", item, store.minSupply(item))
-				fmt.Printf("top demand for %+v: %+v\n", item, store.maxDemand(item))
-			}
 			mu.Unlock()
 		}
 		// c isn't expected to close unless in test mode. But if it
