@@ -12,7 +12,10 @@ bestRouteFrom(location string, creditLimit int) (item string, destination string
 Google+ post: https://plus.google.com/116078268286389936989/posts/gmSxGuN11Kr
 
 URLs:
- /bestbuy - for each station, show which item to buy and where to sell it.
- /buy - show debug buying information
- /sell - show debug selling information
+/bestbuy - for each station, show which item to buy and where to sell it.
+  - optional parameter "cr" for setting a credit limit.
+
+/buy - show debug buying information
+
+/sell - show debug selling information
  
