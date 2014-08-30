@@ -34,16 +34,20 @@ type Key struct {
 	Item string // coffee, gold, etc.
 }
 
-type marketStore map[Key]*llrb.LLRB
+type marketStore struct {
+	items         map[Key]*llrb.LLRB
+	stationSupply map[string]map[Key]suptrans
+	stationDemand map[string]map[Key]demtrans
+}
 
 const maxItems = 5
 
 func (s marketStore) record(m emdn.Transaction) {
 	k := Key{"Demand", m.ItemName}
-	tree, ok := s[k]
+	tree, ok := s.items[k]
 	if !ok {
 		tree = llrb.New()
-		s[k] = tree
+		s.items[k] = tree
 	}
 	tree.ReplaceOrInsert(demtrans(m))
 	for tree.Len() > maxItems {
@@ -51,10 +55,10 @@ func (s marketStore) record(m emdn.Transaction) {
 	}
 
 	k = Key{"Supply", m.ItemName}
-	tree, ok = s[k]
+	tree, ok = s.items[k]
 	if !ok {
 		tree = llrb.New()
-		s[k] = tree
+		s.items[k] = tree
 	}
 	if m.BuyPrice == 0 {
 		m.BuyPrice = math.MaxInt64
@@ -66,7 +70,7 @@ func (s marketStore) record(m emdn.Transaction) {
 }
 
 func (s marketStore) maxDemand(item string) demtrans {
-	i := s[Key{"Demand", item}].Max()
+	i := s.items[Key{"Demand", item}].Max()
 	if i != nil {
 		return i.(demtrans)
 	}
@@ -74,7 +78,7 @@ func (s marketStore) maxDemand(item string) demtrans {
 }
 
 func (s marketStore) minSupply(item string) suptrans {
-	i := s[Key{"Supply", item}].Min()
+	i := s.items[Key{"Supply", item}].Min()
 	if i != nil {
 		return i.(suptrans)
 	}
@@ -82,8 +86,8 @@ func (s marketStore) minSupply(item string) suptrans {
 }
 
 func (s marketStore) sorted(itemType string) []string {
-	items := make([]string, 0, len(s))
-	for k, _ := range s {
+	items := make([]string, 0, len(s.items))
+	for k, _ := range s.items {
 		if k.Type == itemType {
 			items = append(items, k.Item)
 		}
@@ -151,7 +155,7 @@ func main() {
 		sub = emdn.Subscribe
 	}
 	// XXX: HTTP handlers and zeromq are racing.
-	store := make(marketStore)
+	store := &marketStore{items: make(map[Key]*llrb.LLRB)}
 
 	http.HandleFunc("/bestbuy", store.bestBuyHandler)
 	http.HandleFunc("/buy", store.buyHandler)

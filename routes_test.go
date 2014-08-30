@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/nictuku/eliteprofit/emdn"
+	"github.com/petar/GoLLRB/llrb"
 )
 
 type routeTest struct {
@@ -14,7 +15,7 @@ type routeTest struct {
 
 func TestBestBuy(t *testing.T) {
 	count := 0
-	store := make(marketStore)
+	store := &marketStore{items: make(map[Key]*llrb.LLRB)}
 	c := emdn.TestSubscribe()
 	for m := range c {
 		store.record(m.Transaction)
