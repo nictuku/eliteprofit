@@ -40,6 +40,7 @@ func (s marketStore) bestBuy(currentStation string, creditLimit float64, cargoLi
 				SourceStation:      currentStation,
 				BuyPrice:           item.BuyPrice,
 				DestinationStation: bestPrice.Station,
+				SellPrice:          bestPrice.SellPrice,
 				Profit:             profit,
 			}
 			bestProfit = profit

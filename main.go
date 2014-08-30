@@ -18,8 +18,11 @@ import (
 // References:
 // - EMDN http://forums.frontier.co.uk/showthread.php?t=23585
 // - distances: http://forums.frontier.co.uk/showthread.php?t=34824
-var test = flag.Bool("test", false, "test mode, uses the input from data/input.json")
-var debug = flag.Bool("debug", false, "print debugging details")
+var (
+	test  = flag.Bool("test", false, "test mode, uses the input from data/input.json")
+	debug = flag.Bool("debug", false, "print debugging details")
+	port  = flag.String("port", ":8080", "HTTP port to listen to")
+)
 
 // Planned features:
 //
@@ -198,8 +201,7 @@ func main() {
 	http.HandleFunc("/buy", store.buyHandler)
 
 	http.HandleFunc("/sell", store.sellHandler)
-
-	go http.ListenAndServe(":8080", nil)
+	go http.ListenAndServe(*port, nil)
 	for {
 		c := sub()
 		for m := range c {
