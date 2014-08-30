@@ -35,7 +35,7 @@ type marketStore struct {
 	sync.RWMutex
 	itemSupply map[string]*llrb.LLRB
 	itemDemand map[string]*llrb.LLRB
-	// stationName => item => price
+	// station => item => price
 	stationSupply map[string]map[string]float64
 	stationDemand map[string]map[string]float64
 }
@@ -60,7 +60,7 @@ func stationPriceUpdate(m map[string]map[string]float64, station string, item st
 }
 
 func (s marketStore) record(m emdn.Transaction) {
-	k := m.ItemName
+	k := m.Item
 	// Demand
 	tree, ok := s.itemDemand[k]
 	if !ok {
@@ -71,7 +71,7 @@ func (s marketStore) record(m emdn.Transaction) {
 	for tree.Len() > maxItems {
 		tree.DeleteMin()
 	}
-	stationPriceUpdate(s.stationDemand, m.StationName, k, m.SellPrice)
+	stationPriceUpdate(s.stationDemand, m.Station, k, m.SellPrice)
 
 	// Supply
 	tree, ok = s.itemSupply[k]
@@ -86,7 +86,7 @@ func (s marketStore) record(m emdn.Transaction) {
 	for tree.Len() > maxItems {
 		tree.DeleteMax()
 	}
-	stationPriceUpdate(s.stationSupply, m.StationName, k, m.BuyPrice)
+	stationPriceUpdate(s.stationSupply, m.Station, k, m.BuyPrice)
 }
 
 func (s marketStore) maxDemand(item string) demtrans {
@@ -136,7 +136,7 @@ func (s marketStore) buyHandler(w http.ResponseWriter, r *http.Request) {
 		if bestPrice.BuyPrice == math.MaxInt64 {
 			p = "N/A"
 		}
-		fmt.Fprintf(w, "%v: best place to buy from: %v, for %v (supply %v)\n", item, bestPrice.StationName, p, bestPrice.Supply)
+		fmt.Fprintf(w, "%v: best place to buy from: %v, for %v (supply %v)\n", item, bestPrice.Station, p, bestPrice.Supply)
 	}
 }
 
@@ -154,7 +154,7 @@ func (s marketStore) sellHandler(w http.ResponseWriter, r *http.Request) {
 		if bestPrice.BuyPrice == math.MaxInt64 {
 			p = "N/A"
 		}
-		fmt.Fprintf(w, "%v: best place to sell to: %v, for %v (demand %v)\n", item, bestPrice.StationName, p, bestPrice.Demand)
+		fmt.Fprintf(w, "%v: best place to sell to: %v, for %v (demand %v)\n", item, bestPrice.Station, p, bestPrice.Demand)
 	}
 }
 
@@ -202,7 +202,7 @@ func main() {
 		for m := range c {
 			store.Lock()
 			store.record(m.Transaction)
-			item := m.Transaction.ItemName
+			item := m.Transaction.Item
 			fmt.Printf("top supply for %+v: %+v\n", item, store.minSupply(item))
 			fmt.Printf("top demand for %+v: %+v\n", item, store.maxDemand(item))
 			store.Unlock()

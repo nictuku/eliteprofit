@@ -25,13 +25,13 @@ type Message struct {
 }
 
 type Transaction struct {
-	BuyPrice     float64 `json:"buyPrice"`
-	CategoryName string  `json:"categoryName"`
-	Demand       int     `json:"demand"`
-	Supply       int     `json:"stationStock"`
-	ItemName     string  `json:"itemName"`
-	SellPrice    float64 `json:"sellPrice"`
-	StationName  string  `json:"stationName"`
+	BuyPrice  float64 `json:"buyPrice"`
+	Category  string  `json:"categoryName"`
+	Demand    int     `json:"demand"`
+	Supply    int     `json:"stationStock"`
+	Item      string  `json:"itemName"`
+	SellPrice float64 `json:"sellPrice"`
+	Station   string  `json:"stationName"`
 }
 
 /*
