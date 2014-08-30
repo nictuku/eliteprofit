@@ -24,10 +24,7 @@ func (s marketStore) localItems(station string, creditLimit float64) (items []Ro
 	// non-Supply items. For each item type, it traverses the supply search
 	// tree until it finds the entry related to the current station.
 	// Finally, record the prices and later returns them.
-	for k, tree := range s.items {
-		if k.Type != "Supply" {
-			continue
-		}
+	for _, tree := range s.itemSupply {
 		pivot := suptrans{BuyPrice: creditLimit, Supply: 1}
 		tree.DescendLessOrEqual(pivot, func(i llrb.Item) bool {
 			item := i.(suptrans)

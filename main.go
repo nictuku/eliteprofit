@@ -35,30 +35,35 @@ type Key struct {
 }
 
 type marketStore struct {
-	items         map[Key]*llrb.LLRB
+	itemSupply    map[string]*llrb.LLRB
+	itemDemand    map[string]*llrb.LLRB
 	stationSupply map[string]map[Key]suptrans
 	stationDemand map[string]map[Key]demtrans
+}
+
+func newMarketStore() *marketStore {
+	return &marketStore{itemSupply: make(map[string]*llrb.LLRB), itemDemand: make(map[string]*llrb.LLRB)}
 }
 
 const maxItems = 5
 
 func (s marketStore) record(m emdn.Transaction) {
-	k := Key{"Demand", m.ItemName}
-	tree, ok := s.items[k]
+	k := m.ItemName
+	tree, ok := s.itemDemand[k]
 	if !ok {
 		tree = llrb.New()
-		s.items[k] = tree
+		s.itemDemand[k] = tree
 	}
 	tree.ReplaceOrInsert(demtrans(m))
 	for tree.Len() > maxItems {
 		tree.DeleteMin()
 	}
 
-	k = Key{"Supply", m.ItemName}
-	tree, ok = s.items[k]
+	k = m.ItemName
+	tree, ok = s.itemSupply[k]
 	if !ok {
 		tree = llrb.New()
-		s.items[k] = tree
+		s.itemSupply[k] = tree
 	}
 	if m.BuyPrice == 0 {
 		m.BuyPrice = math.MaxInt64
@@ -70,7 +75,7 @@ func (s marketStore) record(m emdn.Transaction) {
 }
 
 func (s marketStore) maxDemand(item string) demtrans {
-	i := s.items[Key{"Demand", item}].Max()
+	i := s.itemDemand[item].Max()
 	if i != nil {
 		return i.(demtrans)
 	}
@@ -78,19 +83,17 @@ func (s marketStore) maxDemand(item string) demtrans {
 }
 
 func (s marketStore) minSupply(item string) suptrans {
-	i := s.items[Key{"Supply", item}].Min()
+	i := s.itemSupply[item].Min()
 	if i != nil {
 		return i.(suptrans)
 	}
 	return suptrans{}
 }
 
-func (s marketStore) sorted(itemType string) []string {
-	items := make([]string, 0, len(s.items))
-	for k, _ := range s.items {
-		if k.Type == itemType {
-			items = append(items, k.Item)
-		}
+func (s marketStore) sorted() []string {
+	items := make([]string, 0, len(s.itemSupply)) // XXX
+	for k, _ := range s.itemSupply {
+		items = append(items, k)
 	}
 	sort.Strings(items)
 	return items
@@ -103,7 +106,7 @@ func (s marketStore) bestBuyHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s marketStore) buyHandler(w http.ResponseWriter, r *http.Request) {
-	for _, item := range s.sorted("Demand") {
+	for _, item := range s.sorted() {
 		bestPrice := s.minSupply(item)
 		p := fmt.Sprintf("%v CR", bestPrice.BuyPrice)
 		if bestPrice.BuyPrice == math.MaxInt64 {
@@ -114,7 +117,7 @@ func (s marketStore) buyHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s marketStore) sellHandler(w http.ResponseWriter, r *http.Request) {
-	for _, item := range s.sorted("Supply") {
+	for _, item := range s.sorted() {
 		bestPrice := s.maxDemand(item)
 		p := fmt.Sprintf("%v CR", bestPrice.SellPrice)
 		if bestPrice.BuyPrice == math.MaxInt64 {
@@ -155,7 +158,7 @@ func main() {
 		sub = emdn.Subscribe
 	}
 	// XXX: HTTP handlers and zeromq are racing.
-	store := &marketStore{items: make(map[Key]*llrb.LLRB)}
+	store := newMarketStore()
 
 	http.HandleFunc("/bestbuy", store.bestBuyHandler)
 	http.HandleFunc("/buy", store.buyHandler)
