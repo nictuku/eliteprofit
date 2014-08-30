@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/nictuku/eliteprofit/emdn"
@@ -47,10 +46,4 @@ func TestBestBuy(t *testing.T) {
 		}
 	}
 	t.Logf("woot")
-}
-
-func BenchmarkBestBuy(b *testing.B) {
-	for i := 0; i < b.N; i++ {
-		fmt.Sprintf("hello")
-	}
 }
