@@ -58,17 +58,16 @@ func TestSubscribe() <-chan Message {
 	c := make(chan Message)
 	go func() {
 		defer f.Close()
+		defer close(c)
 		scanner := bufio.NewScanner(f)
 		for scanner.Scan() {
 			buf := bytes.NewReader(scanner.Bytes())
 			c <- parseMessage(buf)
-			fmt.Println(".")
 		}
 		fmt.Println("finished processing input.json")
 		if err := scanner.Err(); err != nil {
 			fmt.Println(err)
 		}
-		select {}
 	}()
 	return c
 }
@@ -80,6 +79,7 @@ func Subscribe() <-chan Message {
 	c := make(chan Message)
 	go func() {
 		defer receiver.Close()
+		defer close(c)
 		for {
 			// TODO: Find a way to avoid all the extra allocations.
 			buf, err := receiver.RecvBytes(0)

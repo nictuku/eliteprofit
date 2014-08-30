@@ -45,7 +45,7 @@ func (s marketStore) record(m emdn.Transaction) {
 		tree = llrb.New()
 		s[k] = tree
 	}
-	tree.InsertNoReplace(demtrans(m))
+	tree.ReplaceOrInsert(demtrans(m))
 	for tree.Len() > maxItems {
 		tree.DeleteMin()
 	}
@@ -59,7 +59,7 @@ func (s marketStore) record(m emdn.Transaction) {
 	if m.BuyPrice == 0 {
 		m.BuyPrice = math.MaxInt64
 	}
-	tree.InsertNoReplace(suptrans(m))
+	tree.ReplaceOrInsert(suptrans(m))
 	for tree.Len() > maxItems {
 		tree.DeleteMax()
 	}
@@ -90,6 +90,12 @@ func (s marketStore) sorted(itemType string) []string {
 	}
 	sort.Strings(items)
 	return items
+}
+
+func (s marketStore) bestBuyHandler(w http.ResponseWriter, r *http.Request) {
+	for _, route := range s.bestBuy("Nang Ta-khian (Hay Point)", 10000, 10000) {
+		fmt.Fprintf(w, "%v: best place to buy from: %v, for %v\n", route.Item, route.SourceStation, route.BuyPrice)
+	}
 }
 
 func (s marketStore) buyHandler(w http.ResponseWriter, r *http.Request) {
@@ -147,6 +153,7 @@ func main() {
 	// XXX: HTTP handlers and zeromq are racing.
 	store := make(marketStore)
 
+	http.HandleFunc("/bestbuy", store.bestBuyHandler)
 	http.HandleFunc("/buy", store.buyHandler)
 
 	http.HandleFunc("/sell", store.sellHandler)
