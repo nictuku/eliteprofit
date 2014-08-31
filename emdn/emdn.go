@@ -6,14 +6,15 @@
 package emdn
 
 import (
-	"bufio"
 	"bytes"
+	"compress/gzip"
 	"compress/zlib"
 	"encoding/json"
 	"io"
 	"log"
 	"os"
 	"path/filepath"
+	"time"
 	zmq "github.com/pebbe/zmq2"
 
 	"flag"
@@ -45,12 +46,17 @@ type Transaction struct {
 ture":"oqywduXExOwmBCzVIQD4rI0LbYTLZJyt8MmZGORku0HDO1qeX4/fkHiSibklO5KAuxWRan5YH
 f553NgYwr//BQ==","type":"marketquote","version":"0.1"}
 */
-func parseMessage(r io.Reader) (m Message) {
-	dec := json.NewDecoder(r)
-	if err := dec.Decode(&m); err != nil {
+
+func CacheRead() <-chan Message {
+	var f io.ReadCloser
+	var err error
+	if f, err = os.Open(filepath.Join("data", "large.gz")); err != nil {
 		log.Fatal(err)
 	}
-	return m
+	if f, err = gzip.NewReader(f); err != nil {
+		log.Fatal(err)
+	}
+	return fileRead(f)
 }
 
 func TestSubscribe() <-chan Message {
@@ -58,20 +64,27 @@ func TestSubscribe() <-chan Message {
 	if err != nil {
 		log.Fatal(err)
 	}
+	return fileRead(f)
+}
+
+func fileRead(f io.ReadCloser) <-chan Message {
 	c := make(chan Message)
 	go func() {
 		defer f.Close()
 		defer close(c)
-		scanner := bufio.NewScanner(f)
-		for scanner.Scan() {
-			buf := bytes.NewReader(scanner.Bytes())
-			c <- parseMessage(buf)
+		dec := json.NewDecoder(f)
+		for {
+			var m Message
+			if err := dec.Decode(&m); err != nil {
+				if err != io.EOF {
+					log.Print("fileRead:", err)
+				}
+				break
+			}
+			c <- m
 			fmt.Print(".")
 		}
-		fmt.Println("finished processing input.json")
-		if err := scanner.Err(); err != nil {
-			fmt.Println(err)
-		}
+		fmt.Println("finished processing local file")
 	}()
 	return c
 }
@@ -83,7 +96,7 @@ func Subscribe() <-chan Message {
 	c := make(chan Message)
 
 	go func() {
-		for {
+		for { // Start over if we have trouble.
 			// TODO: Find a way to avoid all the extra allocations.
 			buf, err := receiver.RecvBytes(0)
 			if err != nil {
@@ -99,8 +112,22 @@ func Subscribe() <-chan Message {
 			if *showLog {
 				tee = io.TeeReader(r, os.Stdout)
 			}
-			c <- parseMessage(tee)
+			dec := json.NewDecoder(tee)
+			for {
+				var m Message
+				if err := dec.Decode(&m); err != nil {
+					if err != io.EOF {
+						log.Print("Subscribe:", err)
+					}
+					break
+				}
+				c <- m
+				fmt.Print(".")
+			}
 			r.Close()
+			log.Println("Error. Sleeping and trying again")
+			time.Sleep(30 * time.Second)
+			log.Println("Re-connecting")
 		}
 	}()
 	return c

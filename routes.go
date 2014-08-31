@@ -2,6 +2,8 @@ package main
 
 import (
 	"log"
+	"math"
+	"strings"
 
 	"code.google.com/p/gos2/r3"
 )
@@ -13,6 +15,9 @@ type Route struct {
 	DestinationStation string
 	SellPrice          float64
 	Profit             float64
+	Distance           float64
+	JumpRange          float64
+	Jumps              float64
 }
 
 // localItems finds all items with positive supply from a station that cost up
@@ -29,7 +34,7 @@ func (s marketStore) localItems(station string, creditLimit float64) (items []Ro
 // bestBuy finds the route with maximum profit based on arguments. It currently
 // only considers buying from local items and assumes a uniform travel cost -
 // i.e: assumes that all systems are one jump away.
-func (s marketStore) bestBuy(currentStation string, creditLimit float64, cargoLimit int) (routes []Route) {
+func (s marketStore) bestBuy(currentStation string, creditLimit float64, jumpRange float64) (routes []Route) {
 	// Find top profit for each item.
 	var bestProfit, profit float64
 
@@ -39,6 +44,7 @@ func (s marketStore) bestBuy(currentStation string, creditLimit float64, cargoLi
 		bestPrice := s.maxDemand(item.Item)
 		profit = bestPrice.SellPrice - item.BuyPrice
 		if profit > bestProfit {
+			d := distance(currentStation, bestPrice.Station)
 			bestRoute = Route{
 				Item:               item.Item,
 				SourceStation:      currentStation,
@@ -46,6 +52,9 @@ func (s marketStore) bestBuy(currentStation string, creditLimit float64, cargoLi
 				DestinationStation: bestPrice.Station,
 				SellPrice:          bestPrice.SellPrice,
 				Profit:             profit,
+				Distance:           d,
+				JumpRange:          jumpRange,
+				Jumps:              math.Ceil(d / jumpRange),
 			}
 			bestProfit = profit
 		}
@@ -58,8 +67,14 @@ func (s marketStore) bestBuy(currentStation string, creditLimit float64, cargoLi
 	return routes
 }
 
+// Names from 'i Bootis (CHANGO DOCK)' to 'i Bootis'
+func star(station string) string {
+	return strings.Split(station, " (")[0]
+}
+
 func distance(stationA, stationB string) float64 {
-	return locs[stationA].Distance(locs[stationB])
+	// Input can be in the form "i Bootis (CHANGO DOCK)". Need to obtain the star name.
+	return locs[star(stationA)].Distance(locs[star(stationB)])
 }
 
 // Distances from http://forums.frontier.co.uk/showthread.php?t=34824

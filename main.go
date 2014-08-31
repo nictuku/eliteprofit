@@ -5,6 +5,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"log"
 	"math"
 	"net/http"
 	"sort"
@@ -127,11 +128,16 @@ func (s marketStore) bestBuyHandler(w http.ResponseWriter, r *http.Request) {
 	if crLimit == 0 {
 		crLimit = math.MaxFloat64
 	}
+	jumpRange, _ := strconv.ParseFloat(r.FormValue("jump"), 64)
+	if jumpRange == 0 {
+		jumpRange = math.MaxFloat64
+	}
 
 	for _, station := range stations {
 		fmt.Fprintf(w, "======== buying from %v =======\n", station)
-		for _, route := range s.bestBuy(station, crLimit, 10000) {
+		for _, route := range s.bestBuy(station, crLimit, jumpRange) {
 			fmt.Fprintf(w, "buy %v for %v and sell to %v for %v, profit %v\n", route.Item, route.BuyPrice, route.DestinationStation, route.SellPrice, route.Profit)
+			fmt.Fprintf(w, "jumps %v, range %v, distance %v\n", route.Jumps, route.JumpRange, route.Distance)
 		}
 		fmt.Fprintf(w, "\n")
 	}
@@ -199,14 +205,19 @@ var mu sync.Mutex
 
 func main() {
 	flag.Parse()
+	store := newMarketStore()
+
 	var sub func() <-chan emdn.Message
+	// XXX: HTTP handlers and zeromq are racing.
 	if *test {
 		sub = emdn.TestSubscribe
 	} else {
+		for m := range emdn.CacheRead() {
+			store.record(m.Transaction)
+		}
+		log.Println("Cache read finished.")
 		sub = emdn.Subscribe
 	}
-	// XXX: HTTP handlers and zeromq are racing.
-	store := newMarketStore()
 
 	http.HandleFunc("/bestbuy", store.bestBuyHandler)
 	http.HandleFunc("/buy", store.buyHandler)

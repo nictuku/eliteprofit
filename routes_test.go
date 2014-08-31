@@ -55,3 +55,13 @@ func TestDistance(t *testing.T) {
 		t.Errorf("distance between Asellus Primus and Eranin, got %v, wanted %v", d, want)
 	}
 }
+
+func TestStarName(t *testing.T) {
+	station := "i Bootis (CHANGO DOCK)"
+	want := "i Bootis"
+
+	starName := star(station)
+	if starName != want {
+		t.Errorf("star name got %q wanted %q", starName, want)
+	}
+}
