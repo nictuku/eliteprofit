@@ -47,3 +47,11 @@ func TestBestBuy(t *testing.T) {
 	}
 	t.Logf("woot")
 }
+
+func TestDistance(t *testing.T) {
+	d := distance("Asellus Primus", "Eranin")
+	want := 4.482060596143252
+	if d != want {
+		t.Errorf("distance between Asellus Primus and Eranin, got %v, wanted %v", d, want)
+	}
+}
