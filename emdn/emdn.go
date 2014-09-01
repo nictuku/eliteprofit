@@ -59,12 +59,12 @@ func CacheRead() <-chan Message {
 	return fileRead(f)
 }
 
-func TestSubscribe() <-chan Message {
+func TestSubscribe() (<-chan Message, error) {
 	f, err := os.Open(filepath.Join("data", "input.json"))
 	if err != nil {
-		log.Fatal(err)
+		return nil, err
 	}
-	return fileRead(f)
+	return fileRead(f), nil
 }
 
 func fileRead(f io.ReadCloser) <-chan Message {
@@ -89,10 +89,17 @@ func fileRead(f io.ReadCloser) <-chan Message {
 	return c
 }
 
-func Subscribe() <-chan Message {
-	receiver, _ := zmq.NewSocket(zmq.SUB)
-	receiver.Connect("tcp://firehose.elite-market-data.net:9500")
-	receiver.SetSubscribe("")
+func Subscribe() (<-chan Message, error) {
+	receiver, err := zmq.NewSocket(zmq.SUB)
+	if err != nil {
+		return nil, fmt.Errorf("zmq.NewSocket: %v", err)
+	}
+	if err = receiver.Connect("tcp://firehose.elite-market-data.net:9500"); err != nil {
+		return nil, fmt.Errorf("receiver.Connect: %v", err)
+	}
+	if err := receiver.SetSubscribe(""); err != nil {
+		return nil, fmt.Errorf("receiver.SetSubscribe: %v", err)
+	}
 	c := make(chan Message)
 
 	go func() {
@@ -115,20 +122,20 @@ func Subscribe() <-chan Message {
 			dec := json.NewDecoder(tee)
 			for {
 				var m Message
-				if err := dec.Decode(&m); err != nil {
+				if err = dec.Decode(&m); err != nil {
 					if err != io.EOF {
 						log.Print("Subscribe:", err)
+						break
 					}
-					break
 				}
 				c <- m
 				fmt.Print(".")
 			}
 			r.Close()
-			log.Println("Error. Sleeping and trying again")
+			log.Printf("Error: %v. Sleeping and trying again", err)
 			time.Sleep(30 * time.Second)
 			log.Println("Re-connecting")
 		}
 	}()
-	return c
+	return c, nil
 }

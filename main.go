@@ -18,8 +18,9 @@ import (
 )
 
 var (
-	test = flag.Bool("test", false, "test mode, uses the input from data/input.json")
-	port = flag.String("port", ":8080", "HTTP port to listen to")
+	test      = flag.Bool("test", false, "test mode, uses the input from data/input.json")
+	readCache = flag.Bool("readCache", true, "read the local data cache from data/large.gz")
+	port      = flag.String("port", ":8080", "HTTP port to listen to")
 )
 
 // Planned features:
@@ -207,15 +208,17 @@ func main() {
 	flag.Parse()
 	store := newMarketStore()
 
-	var sub func() <-chan emdn.Message
+	var sub func() (<-chan emdn.Message, error)
 	// XXX: HTTP handlers and zeromq are racing.
 	if *test {
 		sub = emdn.TestSubscribe
 	} else {
-		for m := range emdn.CacheRead() {
-			store.record(m.Transaction)
+		if *readCache {
+			for m := range emdn.CacheRead() {
+				store.record(m.Transaction)
+			}
+			log.Println("Cache read finished.")
 		}
-		log.Println("Cache read finished.")
 		sub = emdn.Subscribe
 	}
 
@@ -225,7 +228,12 @@ func main() {
 	http.HandleFunc("/sell", store.sellHandler)
 	go http.ListenAndServe(*port, nil)
 	for {
-		c := sub()
+		c, err := sub()
+		if err != nil {
+			log.Println(err)
+			time.Sleep(10 * time.Second)
+			continue
+		}
 		for m := range c {
 			mu.Lock()
 			store.record(m.Transaction)
