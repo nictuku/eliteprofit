@@ -128,7 +128,7 @@ func (s marketStore) bestBuyHandler(w http.ResponseWriter, r *http.Request) {
 	if crLimit == 0 {
 		crLimit = math.MaxFloat64
 	}
-	jumpRange, _ := strconv.ParseFloat(r.FormValue("jump"), 64)
+	jumpRange, _ := strconv.ParseFloat(r.FormValue("jr"), 64)
 	if jumpRange == 0 {
 		jumpRange = math.MaxFloat64
 	}
