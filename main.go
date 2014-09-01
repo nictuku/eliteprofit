@@ -226,7 +226,7 @@ func main() {
 	http.HandleFunc("/buy", store.buyHandler)
 
 	http.HandleFunc("/sell", store.sellHandler)
-	go http.ListenAndServe(*port, nil)
+	go log.Fatal(http.ListenAndServe(*port, nil))
 	for {
 		c, err := sub()
 		if err != nil {
