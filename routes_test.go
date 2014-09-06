@@ -49,7 +49,6 @@ func TestBestBuy(t *testing.T) {
 			t.Errorf("testStation %v: price %+v (wanted %v)\n", testStation, r, testStation.route.Profit)
 		}
 	}
-	t.Logf("woot")
 }
 
 func TestDistance(t *testing.T) {
@@ -69,15 +68,19 @@ func TestRoute(t *testing.T) {
 	}{
 		// Close neighbors.
 		{"Asellus Primus", "Eranin", 9999, []string{"Asellus Primus", "Eranin"}},
-
 		// 29LY distance.
 		{"Dahan", "Ovid", 9999, []string{"Dahan", "Ovid"}},
 		{"Dahan", "Ovid", 6.1, []string{"Dahan", "Asellus Primus", "Eranin", "i Bootis", "Styx", "Opala", "Ovid"}},
-
-		{"Asellus Primus", "Nang Ta-khian", 6.1, []string{"Asellus Primus", "LHS 3006", "G 239-25", "Nang Ta-khian"}},
+		// Route not possible with a small ship.
+		{"Asellus Primus", "Nang Ta-khian", 6.1, nil},
+		// Bigger ship. Routes via Aulin or Eranin are both OK.
+		{"Asellus Primus", "Nang Ta-khian", 13.34, []string{"Asellus Primus", "Aulin", "Nang Ta-khian"}},
 	}
 	for _, r := range tests {
-		route := starRoute(r.from, r.to, r.jumpRange)
+		route, err := starRoute(r.from, r.to, r.jumpRange)
+		if err != nil {
+			route = nil
+		}
 		if !reflect.DeepEqual(route, r.want) {
 			t.Errorf("starRoute(%q, %q) = %q; want %q", r.from, r.to, route, r.want)
 		}

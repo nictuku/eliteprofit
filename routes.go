@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"strings"
 
@@ -44,8 +45,8 @@ func (s marketStore) bestBuy(currentStation string, creditLimit float64, jumpRan
 		bestPrice := s.maxDemand(item.Item)
 		profit = bestPrice.SellPrice - item.BuyPrice
 		if profit > bestProfit {
-			jumps := starRoute(star(currentStation), star(bestPrice.Station), jumpRange)
-			if len(jumps) == 0 {
+			jumps, err := starRoute(star(currentStation), star(bestPrice.Station), jumpRange)
+			if err != nil {
 				// Unreachable.
 				continue
 			}
@@ -86,24 +87,26 @@ func distance(stationA, stationB string) float64 {
 	return locs[star(stationA)].Distance(locs[star(stationB)])
 }
 
-func starRoute(from, to string, jumpRange float64) []string {
+func starRoute(from, to string, jumpRange float64) ([]string, error) {
 	fromLoc, ok := locs[from]
 	if !ok {
-		return nil
+		return nil, fmt.Errorf("starRoute location not found: %v", from)
 	}
 	toLoc, ok := locs[to]
 	if !ok {
-		return nil
+		return nil, fmt.Errorf("starRoute location not found: %v", to)
 	}
 	// Are they reachable in one jump?
 	fromDistance := fromLoc.Distance(toLoc)
+	log.Printf("reachable(%v,%v,%v, %v) => %v", from, to, fromDistance, jumpRange, fromDistance <= jumpRange)
 	if fromDistance <= jumpRange {
-		return []string{from}
+		log.Printf("returning [%v, %v]", from, to)
+		return []string{from, to}, nil
 	}
 
-	// Use a brute-force method for now. Find the star closest to
-	// the destination than the starting point.
-	closest := from
+	// Use a brute-force method for now. Find the most distance star to the
+	// destination, but still within range from it.
+	var next string
 	var distance float64 = 0
 	// TODO: Reduce locs on each run.
 	for star, loc := range locs {
@@ -111,16 +114,20 @@ func starRoute(from, to string, jumpRange float64) []string {
 			continue
 		}
 		d := loc.Distance(toLoc)
-		if d < jumpRange && fromLoc.Distance(loc) < fromDistance {
+		if d <= jumpRange && fromLoc.Distance(loc) < fromDistance {
 			// Prefer the longest jump within range.
 			if d > distance {
-				closest = star
+				next = star
 				distance = d
 			}
 		}
 	}
-	log.Printf("from %v to %v diving into %v (range %v, distance %v)", from, to, closest, jumpRange, distance)
-	return append(starRoute(from, closest, jumpRange), to)
+	if next == "" {
+		return nil, fmt.Errorf("No route found between %v and %v", from, to)
+	}
+	log.Printf("from(%v,%v) + %v (range %v, distance %v)", from, next, to, jumpRange, distance)
+	r, err := starRoute(from, next, jumpRange)
+	return append(r, to), err
 }
 
 // Distances from http://forums.frontier.co.uk/showthread.php?t=34824
