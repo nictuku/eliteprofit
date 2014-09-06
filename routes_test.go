@@ -1,6 +1,7 @@
 package main
 
 import (
+	"reflect"
 	"testing"
 
 	"github.com/nictuku/eliteprofit/emdn"
@@ -14,7 +15,10 @@ type routeTest struct {
 func TestBestBuy(t *testing.T) {
 	count := 0
 	store := newMarketStore()
-	c := emdn.TestSubscribe()
+	c, err := emdn.TestSubscribe()
+	if err != nil {
+		t.Fatal(err)
+	}
 	for m := range c {
 		store.record(m.Transaction)
 		count += 1
@@ -53,6 +57,28 @@ func TestDistance(t *testing.T) {
 	want := 4.482060596143252
 	if d != want {
 		t.Errorf("distance between Asellus Primus and Eranin, got %v, wanted %v", d, want)
+	}
+}
+
+func TestRoute(t *testing.T) {
+	var tests = []struct {
+		from      string
+		to        string
+		jumpRange float64
+		want      []string
+	}{
+		// Close neighbors.
+		{"Asellus Primus", "Eranin", 9999, []string{"Asellus Primus", "Eranin"}},
+
+		// 29LY distance.
+		{"Dahan", "Ovid", 9999, []string{"Dahan", "Ovid"}},
+		{"Dahan", "Ovid", 6.1, []string{"Dahan", "Asellus Primus", "Eranin", "i Bootis", "Styx", "Opala", "Ovid"}},
+	}
+	for _, r := range tests {
+		route := starRoute(r.from, r.to, r.jumpRange)
+		if !reflect.DeepEqual(route, r.want) {
+			t.Errorf("starRoute(%q, %q) = %q; want %q", r.from, r.to, route, r.want)
+		}
 	}
 }
 

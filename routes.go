@@ -77,6 +77,43 @@ func distance(stationA, stationB string) float64 {
 	return locs[star(stationA)].Distance(locs[star(stationB)])
 }
 
+func starRoute(from, to string, jumpRange float64) []string {
+	fromLoc, ok := locs[from]
+	if !ok {
+		return nil
+	}
+	toLoc, ok := locs[to]
+	if !ok {
+		return nil
+	}
+	// Are they reachable in one jump?
+	fromDistance := fromLoc.Distance(toLoc)
+	if fromDistance <= jumpRange {
+		return []string{from, to}
+	}
+
+	// Use a brute-force method for now. Find the star closest to
+	// the destination than the starting point.
+	closest := from
+	var distance float64 = 0
+	// TODO: Reduce locs on each run.
+	for star, loc := range locs {
+		if star == to {
+			continue
+		}
+		d := loc.Distance(toLoc)
+		if d < jumpRange && fromLoc.Distance(loc) < fromDistance {
+			// Prefer the longest jump within range.
+			if d > distance {
+				closest = star
+				distance = d
+			}
+		}
+	}
+	// log.Printf("from %v to %v diving into %v (range %v, distance %v)", from, to, closest, jumpRange, distance)
+	return append(starRoute(from, closest, jumpRange), to)
+}
+
 // Distances from http://forums.frontier.co.uk/showthread.php?t=34824
 // Converted using https://gist.github.com/nictuku/46919118addfa5912f47.
 var locs = map[string]r3.Vector{
