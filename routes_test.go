@@ -82,6 +82,21 @@ func TestRoute(t *testing.T) {
 	}
 }
 
+func BenchmarkStarRoute(b *testing.B) {
+	// Build routing plan from Eranin to all known stars (as of Beta 1).
+	// For the jump range, consider a Viper with full load (cargo and
+	// fuel), or 9.16 LY according to http://changodock.com.
+	star := "Eranin"
+	for i := 0; i < b.N; i++ {
+		for dest := range locs {
+			if dest == star {
+				continue
+			}
+			starRoute(star, dest, 9.16)
+		}
+	}
+}
+
 func TestStarName(t *testing.T) {
 	station := "i Bootis (CHANGO DOCK)"
 	want := "i Bootis"
