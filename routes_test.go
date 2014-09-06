@@ -73,6 +73,8 @@ func TestRoute(t *testing.T) {
 		// 29LY distance.
 		{"Dahan", "Ovid", 9999, []string{"Dahan", "Ovid"}},
 		{"Dahan", "Ovid", 6.1, []string{"Dahan", "Asellus Primus", "Eranin", "i Bootis", "Styx", "Opala", "Ovid"}},
+
+		{"Asellus Primus", "Nang Ta-khian", 6.1, []string{"Asellus Primus", "LHS 3006", "G 239-25", "Nang Ta-khian"}},
 	}
 	for _, r := range tests {
 		route := starRoute(r.from, r.to, r.jumpRange)

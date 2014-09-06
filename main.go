@@ -138,7 +138,7 @@ func (s marketStore) bestBuyHandler(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, "======== buying from %v =======\n", station)
 		for _, route := range s.bestBuy(station, crLimit, jumpRange) {
 			fmt.Fprintf(w, "buy %v for %v and sell to %v for %v, profit %v\n", route.Item, route.BuyPrice, route.DestinationStation, route.SellPrice, route.Profit)
-			fmt.Fprintf(w, "jumps %v, range %v, distance %v\n", route.Jumps, route.JumpRange, route.Distance)
+			fmt.Fprintf(w, "jumps %q, range %v, distance %v\n", route.Jumps, route.JumpRange, route.Distance)
 		}
 		fmt.Fprintf(w, "\n")
 	}
@@ -226,22 +226,24 @@ func main() {
 	http.HandleFunc("/buy", store.buyHandler)
 
 	http.HandleFunc("/sell", store.sellHandler)
-	go log.Fatal(http.ListenAndServe(*port, nil))
-	for {
-		c, err := sub()
-		if err != nil {
-			log.Println(err)
-			time.Sleep(10 * time.Second)
-			continue
+	go func() {
+		for {
+			c, err := sub()
+			if err != nil {
+				log.Println(err)
+				time.Sleep(10 * time.Second)
+				continue
+			}
+			for m := range c {
+				mu.Lock()
+				store.record(m.Transaction)
+				mu.Unlock()
+			}
+			// c isn't expected to close unless in test mode. But if it
+			// does, restart the subscription.
+			time.Sleep(30 * time.Second)
 		}
-		for m := range c {
-			mu.Lock()
-			store.record(m.Transaction)
-			mu.Unlock()
-		}
-		// c isn't expected to close unless in test mode. But if it
-		// does, restart the subscription.
-		time.Sleep(30 * time.Second)
-	}
+	}()
+	log.Fatal(http.ListenAndServe(*port, nil))
 
 }

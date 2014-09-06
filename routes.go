@@ -2,7 +2,6 @@ package main
 
 import (
 	"log"
-	"math"
 	"strings"
 
 	"code.google.com/p/gos2/r3"
@@ -17,7 +16,7 @@ type Route struct {
 	Profit             float64
 	Distance           float64
 	JumpRange          float64
-	Jumps              float64
+	Jumps              []string
 }
 
 // localItems finds all items with positive supply from a station that cost up
@@ -44,6 +43,11 @@ func (s marketStore) bestBuy(currentStation string, creditLimit float64, jumpRan
 		bestPrice := s.maxDemand(item.Item)
 		profit = bestPrice.SellPrice - item.BuyPrice
 		if profit > bestProfit {
+			jumps := starRoute(star(currentStation), star(bestPrice.Station), jumpRange)
+			if len(jumps) == 0 {
+				// Unreachable.
+				continue
+			}
 			d := distance(currentStation, bestPrice.Station)
 			bestRoute = Route{
 				Item:               item.Item,
@@ -54,7 +58,7 @@ func (s marketStore) bestBuy(currentStation string, creditLimit float64, jumpRan
 				Profit:             profit,
 				Distance:           d,
 				JumpRange:          jumpRange,
-				Jumps:              math.Ceil(d / jumpRange),
+				Jumps:              jumps,
 			}
 			bestProfit = profit
 		}
@@ -89,7 +93,7 @@ func starRoute(from, to string, jumpRange float64) []string {
 	// Are they reachable in one jump?
 	fromDistance := fromLoc.Distance(toLoc)
 	if fromDistance <= jumpRange {
-		return []string{from, to}
+		return []string{from}
 	}
 
 	// Use a brute-force method for now. Find the star closest to
@@ -110,7 +114,7 @@ func starRoute(from, to string, jumpRange float64) []string {
 			}
 		}
 	}
-	// log.Printf("from %v to %v diving into %v (range %v, distance %v)", from, to, closest, jumpRange, distance)
+	log.Printf("from %v to %v diving into %v (range %v, distance %v)", from, to, closest, jumpRange, distance)
 	return append(starRoute(from, closest, jumpRange), to)
 }
 
