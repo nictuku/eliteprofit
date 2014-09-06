@@ -36,6 +36,7 @@ func (s marketStore) localItems(station string, creditLimit float64) (items []Ro
 func (s marketStore) bestBuy(currentStation string, creditLimit float64, jumpRange float64) (routes []Route) {
 	// Find top profit for each item.
 	var bestProfit, profit float64
+	var crjump, bestCRJump float64
 
 	var bestRoute Route
 	for _, item := range s.localItems(currentStation, creditLimit) {
@@ -46,6 +47,10 @@ func (s marketStore) bestBuy(currentStation string, creditLimit float64, jumpRan
 			jumps := starRoute(star(currentStation), star(bestPrice.Station), jumpRange)
 			if len(jumps) == 0 {
 				// Unreachable.
+				continue
+			}
+			// Optimize for CR/Jump.
+			if crjump = profit / float64(len(jumps)); crjump < bestCRJump {
 				continue
 			}
 			d := distance(currentStation, bestPrice.Station)

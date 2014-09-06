@@ -138,7 +138,7 @@ func (s marketStore) bestBuyHandler(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, "======== buying from %v =======\n", station)
 		for _, route := range s.bestBuy(station, crLimit, jumpRange) {
 			fmt.Fprintf(w, "buy %v for %v and sell to %v for %v, profit %v\n", route.Item, route.BuyPrice, route.DestinationStation, route.SellPrice, route.Profit)
-			fmt.Fprintf(w, "jumps %q, range %v, distance %v\n", route.Jumps, route.JumpRange, route.Distance)
+			fmt.Fprintf(w, "jumps %q, range %v, distance %.1f, CR/Jump %.1f\n", route.Jumps, route.JumpRange, route.Distance, route.Profit/float64(len(route.Jumps)))
 		}
 		fmt.Fprintf(w, "\n")
 	}
