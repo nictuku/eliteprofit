@@ -8,6 +8,7 @@ import (
 	"log"
 	"math"
 	"net/http"
+	_ "net/http/pprof"
 	"sort"
 	"strconv"
 	"sync"
