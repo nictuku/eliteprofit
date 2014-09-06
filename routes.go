@@ -78,13 +78,6 @@ func distance(stationA, stationB string) float64 {
 }
 
 func starRoute(from, to string, jumpRange float64) []string {
-	search := make(map[string]bool, len(locs))
-	for star := range locs {
-		search[star] = true
-	}
-	return route(from, to, jumpRange, search)
-}
-func route(from, to string, jumpRange float64, search map[string]bool) []string {
 	fromLoc, ok := locs[from]
 	if !ok {
 		return nil
@@ -104,18 +97,12 @@ func route(from, to string, jumpRange float64, search map[string]bool) []string 
 	closest := from
 	var distance float64 = 0
 	// TODO: Reduce locs on each run.
-	for star := range search {
+	for star, loc := range locs {
 		if star == to {
 			continue
 		}
-		loc := locs[star]
 		d := loc.Distance(toLoc)
-		if fromLoc.Distance(loc) > fromDistance {
-			// log.Printf("deleted %v", star)
-			// delete(search, star)
-			continue
-		}
-		if d < jumpRange {
+		if d < jumpRange && fromLoc.Distance(loc) < fromDistance {
 			// Prefer the longest jump within range.
 			if d > distance {
 				closest = star
@@ -124,7 +111,7 @@ func route(from, to string, jumpRange float64, search map[string]bool) []string 
 		}
 	}
 	// log.Printf("from %v to %v diving into %v (range %v, distance %v)", from, to, closest, jumpRange, distance)
-	return append(route(from, closest, jumpRange, search), to)
+	return append(starRoute(from, closest, jumpRange), to)
 }
 
 // Distances from http://forums.frontier.co.uk/showthread.php?t=34824
