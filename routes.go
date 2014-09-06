@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"strings"
 
 	"code.google.com/p/gos2/r3"
@@ -72,8 +71,6 @@ func (s marketStore) bestBuy(currentStation string, creditLimit float64, jumpRan
 	}
 	// TODO: More routes.
 	routes = []Route{bestRoute}
-	log.Printf("Candidate best profit: deliver %v to %v for %v\n",
-		bestRoute.Item, bestRoute.DestinationStation, bestRoute.Profit)
 	return routes
 }
 
@@ -98,9 +95,7 @@ func starRoute(from, to string, jumpRange float64) ([]string, error) {
 	}
 	// Are they reachable in one jump?
 	fromDistance := fromLoc.Distance(toLoc)
-	log.Printf("reachable(%v,%v,%v, %v) => %v", from, to, fromDistance, jumpRange, fromDistance <= jumpRange)
 	if fromDistance <= jumpRange {
-		log.Printf("returning [%v, %v]", from, to)
 		return []string{from, to}, nil
 	}
 
@@ -125,7 +120,6 @@ func starRoute(from, to string, jumpRange float64) ([]string, error) {
 	if next == "" {
 		return nil, fmt.Errorf("No route found between %v and %v", from, to)
 	}
-	log.Printf("from(%v,%v) + %v (range %v, distance %v)", from, next, to, jumpRange, distance)
 	r, err := starRoute(from, next, jumpRange)
 	return append(r, to), err
 }
