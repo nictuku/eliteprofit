@@ -14,7 +14,6 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	"time"
 	zmq "github.com/pebbe/zmq2"
 
 	"flag"
@@ -107,7 +106,7 @@ func Subscribe() (<-chan Message, error) {
 			// TODO: Find a way to avoid all the extra allocations.
 			msgs, err := receiver.RecvMessageBytes(0)
 			if err != nil {
-				log.Print(err)
+				log.Print("receiver.RecvMessageBytes: ", err)
 				return
 			}
 			for _, buf := range msgs {
@@ -121,21 +120,19 @@ func Subscribe() (<-chan Message, error) {
 					tee = io.TeeReader(r, os.Stdout)
 				}
 				dec := json.NewDecoder(tee)
-				for {
-					var m Message
-					if err = dec.Decode(&m); err != nil {
-						if err != io.EOF {
-							log.Print("Subscribe:", err)
-							break
-						}
+				var m Message
+				if err = dec.Decode(&m); err != nil {
+					if err != io.EOF {
+						log.Print("Subscribe:", err)
+						break
 					}
-					c <- m
-					fmt.Print(".")
 				}
+				c <- m
+				fmt.Print(".")
 				r.Close()
 			}
 			log.Printf("Error: %v. Sleeping and trying again", err)
-			time.Sleep(30 * time.Second)
+			// time.Sleep(30 * time.Second)
 			log.Println("Re-connecting")
 		}
 	}()
