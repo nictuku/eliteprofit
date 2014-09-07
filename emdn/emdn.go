@@ -131,9 +131,6 @@ func Subscribe() (<-chan Message, error) {
 				fmt.Print(".")
 				r.Close()
 			}
-			log.Printf("Error: %v. Sleeping and trying again", err)
-			// time.Sleep(30 * time.Second)
-			log.Println("Re-connecting")
 		}
 	}()
 	return c, nil
