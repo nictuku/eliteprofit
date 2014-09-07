@@ -82,7 +82,7 @@ func fileRead(f io.ReadCloser) <-chan Message {
 				break
 			}
 			c <- m
-			fmt.Print(".")
+			fmt.Print("-")
 		}
 		fmt.Println("finished processing local file")
 	}()
@@ -105,33 +105,35 @@ func Subscribe() (<-chan Message, error) {
 	go func() {
 		for { // Start over if we have trouble.
 			// TODO: Find a way to avoid all the extra allocations.
-			buf, err := receiver.RecvBytes(0)
+			msgs, err := receiver.RecvMessageBytes(0)
 			if err != nil {
 				log.Print(err)
 				return
 			}
-			r, err := zlib.NewReader(bytes.NewReader(buf))
-			if err != nil {
-				log.Print(err)
-				return
-			}
-			var tee io.Reader = r
-			if *showLog {
-				tee = io.TeeReader(r, os.Stdout)
-			}
-			dec := json.NewDecoder(tee)
-			for {
-				var m Message
-				if err = dec.Decode(&m); err != nil {
-					if err != io.EOF {
-						log.Print("Subscribe:", err)
-						break
-					}
+			for _, buf := range msgs {
+				r, err := zlib.NewReader(bytes.NewReader(buf))
+				if err != nil {
+					log.Print(err)
+					return
 				}
-				c <- m
-				fmt.Print(".")
+				var tee io.Reader = r
+				if *showLog {
+					tee = io.TeeReader(r, os.Stdout)
+				}
+				dec := json.NewDecoder(tee)
+				for {
+					var m Message
+					if err = dec.Decode(&m); err != nil {
+						if err != io.EOF {
+							log.Print("Subscribe:", err)
+							break
+						}
+					}
+					c <- m
+					fmt.Print(".")
+				}
+				r.Close()
 			}
-			r.Close()
 			log.Printf("Error: %v. Sleeping and trying again", err)
 			time.Sleep(30 * time.Second)
 			log.Println("Re-connecting")
